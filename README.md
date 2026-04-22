@@ -9,12 +9,20 @@
 
 ## Быстрый запуск
 
+1. Скопируйте шаблон окружения:
+
 ```bash
-export VK_TOKEN="vk1.a_super_secret_token"
-export VK_CALLBACK_SECRET="callback-secret"
-export VK_ADMIN_IDS="1,2,3"
-export DB_PATH="data/app.db"
-export VK_CONFIRMATION_CODE="test-confirmation-code"
+cp .env.example .env
+```
+
+2. Заполните `.env` своими значениями секретов.
+
+3. Загрузите переменные окружения и запустите приложение:
+
+```bash
+set -a
+source .env
+set +a
 python3 main.py
 ```
 
