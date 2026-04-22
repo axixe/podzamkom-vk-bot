@@ -4,13 +4,16 @@ from pathlib import Path
 from infrastructure.config import AppConfig
 from infrastructure.db.migrator import DatabaseMigrator
 from infrastructure.repositories.in_memory_event_repository import InMemoryEventRepository
+from infrastructure.repositories.sqlite_actor_identity_repository import SqliteActorIdentityRepository
 from infrastructure.repositories.sqlite_employee_repository import SqliteEmployeeRepository
+from infrastructure.repositories.sqlite_user_draft_repository import SqliteUserDraftRepository
 from interfaces.admin_handler import AdminHandler
 from use_cases.employees import (
     CreateEmployeeUseCase,
     DeactivateEmployeeUseCase,
     ListEmployeesUseCase,
 )
+from use_cases.identity.resolve_actor_identity import ResolveActorIdentityUseCase
 from use_cases.process_vk_callback import ProcessVkCallbackUseCase
 
 
@@ -32,10 +35,17 @@ def build_container(config: AppConfig) -> AppContainer:
 
     event_repository = InMemoryEventRepository()
     employee_repository = SqliteEmployeeRepository(db_path=config.db_path)
+    actor_identity_repository = SqliteActorIdentityRepository(db_path=config.db_path)
+    user_draft_repository = SqliteUserDraftRepository(db_path=config.db_path)
+    resolve_actor_identity_use_case = ResolveActorIdentityUseCase(
+        actor_identity_repository=actor_identity_repository
+    )
 
     process_vk_callback_use_case = ProcessVkCallbackUseCase(
         event_repository=event_repository,
         employee_repository=employee_repository,
+        user_draft_repository=user_draft_repository,
+        resolve_actor_identity_use_case=resolve_actor_identity_use_case,
     )
 
     admin_handler = AdminHandler(

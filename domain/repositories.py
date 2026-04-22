@@ -35,3 +35,11 @@ class EmployeeRepository(Protocol):
 
     def find_active_by_platform_user_id(self, platform_user_id: int) -> Employee | None:
         ...
+
+
+class UserDraftRepository(Protocol):
+    def add_photo(self, user_id: int, file_id: str) -> None:
+        ...
+
+    def count_photos_by_user_id(self, user_id: int) -> int:
+        ...
