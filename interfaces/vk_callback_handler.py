@@ -1,5 +1,7 @@
+import json
 from typing import Any
 
+from domain.services import OutgoingMessageService
 from infrastructure.logger import get_logger, payload_summary
 from interfaces.admin_handler import AdminHandler
 from use_cases.process_vk_callback import ProcessVkCallbackUseCase
@@ -15,12 +17,14 @@ class VkCallbackHandler:
         callback_secret: str,
         admin_user_ids: tuple[int, ...],
         admin_handler: AdminHandler,
+        outgoing_message_service: OutgoingMessageService,
     ) -> None:
         self._process_vk_callback_use_case = process_vk_callback_use_case
         self._confirmation_code = confirmation_code
         self._callback_secret = callback_secret
         self._admin_user_ids = set(admin_user_ids)
         self._admin_handler = admin_handler
+        self._outgoing_message_service = outgoing_message_service
         self._logger = get_logger()
 
     def handle(self, request_json: dict[str, Any]) -> str:
@@ -57,30 +61,52 @@ class VkCallbackHandler:
             return self._confirmation_code
 
         if result == "show_main_menu":
-            return self._render_main_menu_message()
+            self._send_message_new_reply(request_json, self._render_main_menu_message(), self._main_menu_keyboard())
+            return "ok"
 
         if result.startswith("role_selected:"):
             role = result.split(":", maxsplit=1)[1]
-            return self._render_role_message(role)
+            self._send_message_new_reply(request_json, self._render_role_message(role), self._main_menu_keyboard())
+            return "ok"
 
         if result.startswith("draft_updated:"):
             draft_count = result.split(":", maxsplit=1)[1]
-            return self._with_main_menu(f"Фото сохранены в черновик. Всего фото: {draft_count}")
+            self._send_message_new_reply(
+                request_json,
+                self._with_main_menu(f"Фото сохранены в черновик. Всего фото: {draft_count}"),
+                self._main_menu_keyboard(),
+            )
+            return "ok"
 
         if result.startswith("draft_cleared:"):
             deleted_count = result.split(":", maxsplit=1)[1]
-            return self._with_main_menu(f"Черновик очищен. Удалено фото: {deleted_count}")
+            self._send_message_new_reply(
+                request_json,
+                self._with_main_menu(f"Черновик очищен. Удалено фото: {deleted_count}"),
+                self._main_menu_keyboard(),
+            )
+            return "ok"
 
         if result == "draft_empty":
-            return self._with_main_menu("Черновик пуст — отправлять нечего.")
+            self._send_message_new_reply(
+                request_json,
+                self._with_main_menu("Черновик пуст — отправлять нечего."),
+                self._main_menu_keyboard(),
+            )
+            return "ok"
 
         if result.startswith("draft_submitted:"):
             _, queued_count, employee_id = result.split(":", maxsplit=2)
-            return self._with_main_menu(
-                "Черновик отправлен в очередь. "
-                f"Фото в очереди: {queued_count}. "
-                f"employee_id: {employee_id}"
+            self._send_message_new_reply(
+                request_json,
+                self._with_main_menu(
+                    "Черновик отправлен в очередь. "
+                    f"Фото в очереди: {queued_count}. "
+                    f"employee_id: {employee_id}"
+                ),
+                self._main_menu_keyboard(),
             )
+            return "ok"
 
         return "ok"
 
@@ -185,3 +211,44 @@ class VkCallbackHandler:
 
     def _with_main_menu(self, message: str) -> str:
         return f"{message}\n\n{self._render_main_menu_message()}"
+
+    def _send_message_new_reply(self, request_json: dict[str, Any], text: str, keyboard: str | None = None) -> None:
+        user_id = self._extract_from_id(request_json)
+        if user_id is None:
+            self._logger.warning("Cannot send message: missing from_id")
+            return
+
+        try:
+            self._outgoing_message_service.send_message(user_id=user_id, text=text, keyboard=keyboard)
+        except Exception:  # noqa: BLE001
+            self._logger.exception("Failed to send VK message: user_id=%s", user_id)
+
+    @staticmethod
+    def _extract_from_id(request_json: dict[str, Any]) -> int | None:
+        event_object = request_json.get("object")
+        if not isinstance(event_object, dict):
+            return None
+
+        message = event_object.get("message")
+        message_dict = message if isinstance(message, dict) else event_object
+        from_id = message_dict.get("from_id")
+        if isinstance(from_id, int):
+            return from_id
+        return None
+
+    @staticmethod
+    def _main_menu_keyboard() -> str:
+        keyboard = {
+            "one_time": False,
+            "buttons": [
+                [
+                    {"action": {"type": "text", "label": "Employee"}, "color": "primary"},
+                    {"action": {"type": "text", "label": "Admin"}, "color": "secondary"},
+                    {"action": {"type": "text", "label": "Guest"}, "color": "secondary"},
+                ],
+                [
+                    {"action": {"type": "text", "label": "🏠 Главное меню"}, "color": "positive"},
+                ],
+            ],
+        }
+        return json.dumps(keyboard, ensure_ascii=False)

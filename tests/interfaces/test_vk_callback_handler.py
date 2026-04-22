@@ -9,12 +9,14 @@ class VkCallbackHandlerTest(unittest.TestCase):
         self.process_vk_callback_use_case = Mock()
         self.process_vk_callback_use_case.execute.return_value = "ok"
         self.admin_handler = Mock()
+        self.outgoing_message_service = Mock()
         self.handler = VkCallbackHandler(
             process_vk_callback_use_case=self.process_vk_callback_use_case,
             confirmation_code="confirm-code",
             callback_secret="super-secret",
             admin_user_ids=(101,),
             admin_handler=self.admin_handler,
+            outgoing_message_service=self.outgoing_message_service,
         )
 
     def test_rejects_event_with_invalid_secret_without_use_case_call(self) -> None:
@@ -127,10 +129,15 @@ class VkCallbackHandlerTest(unittest.TestCase):
             }
         )
 
-        self.assertIn("Employee", result)
-        self.assertIn("Admin", result)
-        self.assertIn("Guest", result)
-        self.assertIn("🏠 Главное меню", result)
+        self.assertEqual(result, "ok")
+        self.outgoing_message_service.send_message.assert_called_once()
+        _, kwargs = self.outgoing_message_service.send_message.call_args
+        self.assertIn("Employee", kwargs["text"])
+        self.assertIn("Admin", kwargs["text"])
+        self.assertIn("Guest", kwargs["text"])
+        self.assertIn("🏠 Главное меню", kwargs["text"])
+        self.assertEqual(kwargs["user_id"], 101)
+        self.assertIsInstance(kwargs["keyboard"], str)
 
     def test_adds_main_menu_to_completed_action_response(self) -> None:
         self.process_vk_callback_use_case.execute.return_value = "draft_cleared:2"
@@ -144,8 +151,11 @@ class VkCallbackHandlerTest(unittest.TestCase):
             }
         )
 
-        self.assertIn("Черновик очищен", result)
-        self.assertIn("🏠 Главное меню", result)
+        self.assertEqual(result, "ok")
+        self.outgoing_message_service.send_message.assert_called_once()
+        _, kwargs = self.outgoing_message_service.send_message.call_args
+        self.assertIn("Черновик очищен", kwargs["text"])
+        self.assertIn("🏠 Главное меню", kwargs["text"])
 
     def test_allows_text_only_message_for_message_new_validation(self) -> None:
         result = self.handler.handle(
@@ -159,6 +169,21 @@ class VkCallbackHandlerTest(unittest.TestCase):
 
         self.assertEqual(result, "ok")
         self.process_vk_callback_use_case.execute.assert_called_once()
+
+    def test_sends_reply_to_vk_for_role_selected_result(self) -> None:
+        self.process_vk_callback_use_case.execute.return_value = "role_selected:guest"
+
+        result = self.handler.handle(
+            {
+                "type": "message_new",
+                "secret": "super-secret",
+                "event_id": "evt-role-1",
+                "object": {"message": {"from_id": 101, "text": "Guest"}},
+            }
+        )
+
+        self.assertEqual(result, "ok")
+        self.outgoing_message_service.send_message.assert_called_once()
 
 
 if __name__ == "__main__":
