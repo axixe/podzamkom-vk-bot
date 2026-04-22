@@ -9,6 +9,27 @@ class ConfigError(ValueError):
     """Ошибка конфигурации приложения."""
 
 
+def load_dotenv(dotenv_path: Path = Path('.env')) -> None:
+    """Загружает переменные из .env, не перетирая уже заданные ENV."""
+
+    if not dotenv_path.exists():
+        return
+
+    for raw_line in dotenv_path.read_text(encoding='utf-8').splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith('#'):
+            continue
+        if '=' not in line:
+            continue
+
+        key, value = line.split('=', 1)
+        key = key.strip()
+        value = value.strip().strip('"').strip("'")
+
+        if key:
+            os.environ.setdefault(key, value)
+
+
 @dataclass(frozen=True)
 class AppConfig:
     vk_token: str
@@ -19,6 +40,8 @@ class AppConfig:
 
     @classmethod
     def from_env(cls) -> "AppConfig":
+        load_dotenv()
+
         required_envs = [
             "VK_TOKEN",
             "VK_CALLBACK_SECRET",
