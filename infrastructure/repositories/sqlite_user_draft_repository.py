@@ -16,6 +16,19 @@ class SqliteUserDraftRepository:
         conn.row_factory = sqlite3.Row
         return conn
 
+    @staticmethod
+    def _to_queue_item(row: sqlite3.Row) -> PhotoQueueItemForReview:
+        started_at = row["review_started_at"]
+        reviewed_at = row["reviewed_at"]
+        return PhotoQueueItemForReview(
+            id=int(row["id"]),
+            employee_id=int(row["employee_id"]),
+            photo_url=str(row["photo_url"]) if row["photo_url"] is not None else None,
+            status=str(row["status"]),
+            review_started_at=datetime.fromisoformat(str(started_at)) if started_at else None,
+            reviewed_at=datetime.fromisoformat(str(reviewed_at)) if reviewed_at else None,
+        )
+
     def add_photo(self, user_id: int, file_id: str) -> None:
         with self._connect() as conn:
             conn.execute(
@@ -131,7 +144,7 @@ class SqliteUserDraftRepository:
 
             updated = conn.execute(
                 """
-                SELECT id, employee_id, photo_url, status, review_started_at
+                SELECT id, employee_id, photo_url, status, review_started_at, reviewed_at
                 FROM photo_queue
                 WHERE id = ?
                 LIMIT 1
@@ -140,14 +153,45 @@ class SqliteUserDraftRepository:
             ).fetchone()
             conn.commit()
 
-        if updated is None:
-            return None
+        return self._to_queue_item(updated) if updated is not None else None
 
-        started_at = updated["review_started_at"]
-        return PhotoQueueItemForReview(
-            id=int(updated["id"]),
-            employee_id=int(updated["employee_id"]),
-            photo_url=str(updated["photo_url"]) if updated["photo_url"] is not None else None,
-            status=str(updated["status"]),
-            review_started_at=datetime.fromisoformat(str(started_at)) if started_at else None,
-        )
+    def approve_queue_item(self, queue_item_id: int) -> PhotoQueueItemForReview | None:
+        return self._resolve_queue_item(queue_item_id=queue_item_id, decision_status="approved")
+
+    def reject_queue_item(self, queue_item_id: int) -> PhotoQueueItemForReview | None:
+        return self._resolve_queue_item(queue_item_id=queue_item_id, decision_status="rejected")
+
+    def _resolve_queue_item(
+        self,
+        queue_item_id: int,
+        decision_status: str,
+    ) -> PhotoQueueItemForReview | None:
+        now = datetime.now(timezone.utc).isoformat()
+
+        with self._connect() as conn:
+            conn.execute("BEGIN IMMEDIATE")
+            cursor = conn.execute(
+                """
+                UPDATE photo_queue
+                SET status = ?,
+                    reviewed_at = ?
+                WHERE id = ? AND status = 'in_review'
+                """,
+                (decision_status, now, queue_item_id),
+            )
+            if cursor.rowcount == 0:
+                conn.commit()
+                return None
+
+            updated = conn.execute(
+                """
+                SELECT id, employee_id, photo_url, status, review_started_at, reviewed_at
+                FROM photo_queue
+                WHERE id = ?
+                LIMIT 1
+                """,
+                (queue_item_id,),
+            ).fetchone()
+            conn.commit()
+
+        return self._to_queue_item(updated) if updated is not None else None

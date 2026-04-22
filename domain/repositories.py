@@ -58,3 +58,9 @@ class UserDraftRepository(Protocol):
 
     def take_next_pending_for_review(self) -> PhotoQueueItemForReview | None:
         ...
+
+    def approve_queue_item(self, queue_item_id: int) -> PhotoQueueItemForReview | None:
+        ...
+
+    def reject_queue_item(self, queue_item_id: int) -> PhotoQueueItemForReview | None:
+        ...

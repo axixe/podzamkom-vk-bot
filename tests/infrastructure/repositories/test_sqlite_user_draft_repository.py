@@ -134,5 +134,45 @@ class SqliteUserDraftRepositoryTest(unittest.TestCase):
         self.assertIsNone(taken)
 
 
+    def test_approve_queue_item_changes_only_in_review_and_sets_reviewed_at(self) -> None:
+        with sqlite3.connect(self.db_path) as conn:
+            conn.execute(
+                """
+                INSERT INTO photo_queue (employee_id, status, photo_url, review_started_at)
+                VALUES (1, 'in_review', 'p1', CURRENT_TIMESTAMP)
+                """
+            )
+
+        approved = self.repository.approve_queue_item(queue_item_id=1)
+
+        self.assertIsNotNone(approved)
+        assert approved is not None
+        self.assertEqual(approved.status, "approved")
+        self.assertIsNotNone(approved.reviewed_at)
+
+    def test_reject_queue_item_returns_none_for_non_in_review(self) -> None:
+        with sqlite3.connect(self.db_path) as conn:
+            conn.execute(
+                """
+                INSERT INTO photo_queue (employee_id, status, photo_url)
+                VALUES (1, 'pending', 'p1')
+                """
+            )
+
+        rejected = self.repository.reject_queue_item(queue_item_id=1)
+
+        self.assertIsNone(rejected)
+        with sqlite3.connect(self.db_path) as conn:
+            row = conn.execute(
+                """
+                SELECT status, reviewed_at
+                FROM photo_queue
+                WHERE id = 1
+                """
+            ).fetchone()
+        self.assertEqual(row[0], "pending")
+        self.assertIsNone(row[1])
+
+
 if __name__ == "__main__":
     unittest.main()
