@@ -62,10 +62,10 @@ def create_http_server(port: int = 8000) -> ThreadingHTTPServer:
         raise SystemExit(f"Configuration error: {exc}") from exc
 
     logger.info(
-        "Starting callback server: port=%s, db_path=%s, admin_ids=%s, vk_token=%s, callback_secret=%s",
+        "Starting callback server: port=%s, db_path=%s, admin_user_ids=%s, vk_token=%s, callback_secret=%s",
         port,
         config.db_path,
-        config.vk_admin_ids,
+        config.admin_user_ids,
         mask_secret(config.vk_token),
         mask_secret(config.vk_callback_secret),
     )
@@ -75,6 +75,8 @@ def create_http_server(port: int = 8000) -> ThreadingHTTPServer:
         process_vk_callback_use_case=container.process_vk_callback_use_case,
         confirmation_code=config.vk_confirmation_code,
         callback_secret=config.vk_callback_secret,
+        admin_user_ids=config.admin_user_ids,
+        admin_handler=container.admin_handler,
     )
 
     CallbackRequestHandler.vk_handler = handler

@@ -1,6 +1,6 @@
 from typing import Protocol
 
-from domain.models import ActorIdentity, VkCallbackEvent
+from domain.models import ActorIdentity, Employee, VkCallbackEvent
 
 
 class EventRepository(Protocol):
@@ -20,4 +20,18 @@ class ActorIdentityRepository(Protocol):
         ...
 
     def link_platform_user_id(self, actor_id: int, platform_user_id: int) -> ActorIdentity:
+        ...
+
+
+class EmployeeRepository(Protocol):
+    def create(self, username: str, platform_user_id: int | None = None) -> Employee:
+        ...
+
+    def list_all(self) -> list[Employee]:
+        ...
+
+    def deactivate(self, employee_id: int) -> Employee | None:
+        ...
+
+    def find_active_by_platform_user_id(self, platform_user_id: int) -> Employee | None:
         ...

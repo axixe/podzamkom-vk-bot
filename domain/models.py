@@ -19,3 +19,15 @@ class ActorIdentity:
     actor_id: int
     username: str
     platform_user_id: int | None
+
+
+@dataclass(frozen=True)
+class Employee:
+    """Сотрудник, связанный с VK user и статусом активности."""
+
+    id: int
+    username: str
+    platform_user_id: int | None
+    is_active: bool
+    created_at: datetime
+    updated_at: datetime

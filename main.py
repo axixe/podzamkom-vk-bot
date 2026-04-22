@@ -16,9 +16,9 @@ if __name__ == "__main__":
         raise SystemExit(f"Configuration error: {exc}") from exc
 
     logger.info(
-        "Configuration loaded: db_path=%s, admin_ids=%s, vk_token=%s, callback_secret=%s",
+        "Configuration loaded: db_path=%s, admin_user_ids=%s, vk_token=%s, callback_secret=%s",
         config.db_path,
-        config.vk_admin_ids,
+        config.admin_user_ids,
         mask_secret(config.vk_token),
         mask_secret(config.vk_callback_secret),
     )
@@ -28,6 +28,8 @@ if __name__ == "__main__":
         process_vk_callback_use_case=container.process_vk_callback_use_case,
         confirmation_code=config.vk_confirmation_code,
         callback_secret=config.vk_callback_secret,
+        admin_user_ids=config.admin_user_ids,
+        admin_handler=container.admin_handler,
     )
 
     print(
