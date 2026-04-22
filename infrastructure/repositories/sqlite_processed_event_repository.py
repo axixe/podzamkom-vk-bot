@@ -15,12 +15,18 @@ class SqliteProcessedEventRepository:
 
     def mark_processed_if_new(self, event_id: str) -> bool:
         with self._connect() as conn:
-            cursor = conn.execute(
-                """
-                INSERT OR IGNORE INTO processed_events (event_id)
-                VALUES (?)
-                """,
-                (event_id,),
-            )
+            conn.execute("BEGIN IMMEDIATE")
+            try:
+                conn.execute(
+                    """
+                    INSERT INTO processed_events (event_id)
+                    VALUES (?)
+                    """,
+                    (event_id,),
+                )
+            except sqlite3.IntegrityError:
+                conn.rollback()
+                return False
 
-        return int(cursor.rowcount) > 0
+            conn.commit()
+            return True
