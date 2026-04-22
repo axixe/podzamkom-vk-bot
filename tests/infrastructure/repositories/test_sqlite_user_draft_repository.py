@@ -84,6 +84,55 @@ class SqliteUserDraftRepositoryTest(unittest.TestCase):
             after_count = conn.execute("SELECT COUNT(*) FROM photo_queue").fetchone()[0]
         self.assertEqual(before_count, after_count)
 
+    def test_take_next_pending_for_review_takes_min_id_and_marks_in_review(self) -> None:
+        with sqlite3.connect(self.db_path) as conn:
+            conn.execute(
+                """
+                INSERT INTO photo_queue (employee_id, status, photo_url)
+                VALUES (1, 'pending', 'p1')
+                """
+            )
+            conn.execute(
+                """
+                INSERT INTO photo_queue (employee_id, status, photo_url)
+                VALUES (2, 'pending', 'p2')
+                """
+            )
+
+        taken = self.repository.take_next_pending_for_review()
+
+        self.assertIsNotNone(taken)
+        assert taken is not None
+        self.assertEqual(taken.id, 1)
+        self.assertEqual(taken.status, "in_review")
+        self.assertIsNotNone(taken.review_started_at)
+
+        with sqlite3.connect(self.db_path) as conn:
+            rows = conn.execute(
+                """
+                SELECT id, status, review_started_at
+                FROM photo_queue
+                ORDER BY id ASC
+                """
+            ).fetchall()
+        self.assertEqual(rows[0][0], 1)
+        self.assertEqual(rows[0][1], "in_review")
+        self.assertIsNotNone(rows[0][2])
+        self.assertEqual(rows[1][1], "pending")
+        self.assertIsNone(rows[1][2])
+
+    def test_take_next_pending_for_review_returns_none_when_pending_absent(self) -> None:
+        with sqlite3.connect(self.db_path) as conn:
+            conn.execute(
+                """
+                INSERT INTO photo_queue (employee_id, status, photo_url)
+                VALUES (1, 'in_review', 'p1')
+                """
+            )
+
+        taken = self.repository.take_next_pending_for_review()
+        self.assertIsNone(taken)
+
 
 if __name__ == "__main__":
     unittest.main()

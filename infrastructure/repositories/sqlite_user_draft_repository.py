@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 import sqlite3
+from datetime import datetime, timezone
 from pathlib import Path
 
-from domain.models import SubmitDraftResult
+from domain.models import PhotoQueueItemForReview, SubmitDraftResult
 
 
 class SqliteUserDraftRepository:
@@ -95,3 +96,58 @@ class SqliteUserDraftRepository:
             )
 
         return SubmitDraftResult(queued_count=len(file_ids), employee_id=employee_id)
+
+    def take_next_pending_for_review(self) -> PhotoQueueItemForReview | None:
+        now = datetime.now(timezone.utc).isoformat()
+
+        with self._connect() as conn:
+            conn.execute("BEGIN IMMEDIATE")
+            row = conn.execute(
+                """
+                SELECT id
+                FROM photo_queue
+                WHERE status = 'pending'
+                ORDER BY id ASC
+                LIMIT 1
+                """
+            ).fetchone()
+            if row is None:
+                conn.commit()
+                return None
+
+            queue_id = int(row["id"])
+            cursor = conn.execute(
+                """
+                UPDATE photo_queue
+                SET status = 'in_review',
+                    review_started_at = ?
+                WHERE id = ? AND status = 'pending'
+                """,
+                (now, queue_id),
+            )
+            if cursor.rowcount == 0:
+                conn.commit()
+                return None
+
+            updated = conn.execute(
+                """
+                SELECT id, employee_id, photo_url, status, review_started_at
+                FROM photo_queue
+                WHERE id = ?
+                LIMIT 1
+                """,
+                (queue_id,),
+            ).fetchone()
+            conn.commit()
+
+        if updated is None:
+            return None
+
+        started_at = updated["review_started_at"]
+        return PhotoQueueItemForReview(
+            id=int(updated["id"]),
+            employee_id=int(updated["employee_id"]),
+            photo_url=str(updated["photo_url"]) if updated["photo_url"] is not None else None,
+            status=str(updated["status"]),
+            review_started_at=datetime.fromisoformat(str(started_at)) if started_at else None,
+        )

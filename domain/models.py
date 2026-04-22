@@ -39,3 +39,14 @@ class SubmitDraftResult:
 
     queued_count: int
     employee_id: int
+
+
+@dataclass(frozen=True)
+class PhotoQueueItemForReview:
+    """Элемент очереди фото, взятый в модерацию."""
+
+    id: int
+    employee_id: int
+    photo_url: str | None
+    status: str
+    review_started_at: datetime | None

@@ -1,9 +1,12 @@
-from domain.models import SubmitDraftResult
+from datetime import datetime, timezone
+
+from domain.models import PhotoQueueItemForReview, SubmitDraftResult
 
 
 class InMemoryUserDraftRepository:
     def __init__(self) -> None:
         self._drafts: dict[int, list[str]] = {}
+        self._queue: list[PhotoQueueItemForReview] = []
 
     def add_photo(self, user_id: int, file_id: str) -> None:
         self._drafts.setdefault(user_id, []).append(file_id)
@@ -23,6 +26,26 @@ class InMemoryUserDraftRepository:
 
         self._drafts.pop(user_id, None)
         return SubmitDraftResult(queued_count=len(file_ids), employee_id=user_id)
+
+    def take_next_pending_for_review(self) -> PhotoQueueItemForReview | None:
+        for index, item in enumerate(self._queue):
+            if item.status != "pending":
+                continue
+
+            updated = PhotoQueueItemForReview(
+                id=item.id,
+                employee_id=item.employee_id,
+                photo_url=item.photo_url,
+                status="in_review",
+                review_started_at=datetime.now(timezone.utc),
+            )
+            self._queue[index] = updated
+            return updated
+
+        return None
+
+    def seed_queue(self, items: list[PhotoQueueItemForReview]) -> None:
+        self._queue = list(items)
 
     @property
     def drafts(self) -> dict[int, list[str]]:
