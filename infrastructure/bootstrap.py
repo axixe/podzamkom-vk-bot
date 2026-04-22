@@ -16,6 +16,7 @@ from use_cases.employees import (
 )
 from use_cases.identity.resolve_actor_identity import ResolveActorIdentityUseCase
 from use_cases.process_vk_callback import ProcessVkCallbackUseCase
+from use_cases.submit_draft import SubmitDraftUseCase
 
 
 @dataclass(frozen=True)
@@ -48,6 +49,7 @@ def build_container(config: AppConfig) -> AppContainer:
         user_draft_repository=user_draft_repository,
         resolve_actor_identity_use_case=resolve_actor_identity_use_case,
         clear_draft_use_case=ClearDraftUseCase(user_draft_repository=user_draft_repository),
+        submit_draft_use_case=SubmitDraftUseCase(user_draft_repository=user_draft_repository),
     )
 
     admin_handler = AdminHandler(

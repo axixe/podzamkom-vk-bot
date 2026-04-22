@@ -1,6 +1,6 @@
 from typing import Protocol
 
-from domain.models import ActorIdentity, Employee, VkCallbackEvent
+from domain.models import ActorIdentity, Employee, SubmitDraftResult, VkCallbackEvent
 
 
 class EventRepository(Protocol):
@@ -45,4 +45,7 @@ class UserDraftRepository(Protocol):
         ...
 
     def clear_by_user_id(self, user_id: int) -> int:
+        ...
+
+    def submit_draft(self, user_id: int) -> SubmitDraftResult | None:
         ...

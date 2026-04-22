@@ -3,6 +3,8 @@ from __future__ import annotations
 import sqlite3
 from pathlib import Path
 
+from domain.models import SubmitDraftResult
+
 
 class SqliteUserDraftRepository:
     def __init__(self, db_path: Path) -> None:
@@ -47,3 +49,49 @@ class SqliteUserDraftRepository:
             )
 
         return int(cursor.rowcount)
+
+    def submit_draft(self, user_id: int) -> SubmitDraftResult | None:
+        with self._connect() as conn:
+            employee_row = conn.execute(
+                """
+                SELECT id
+                FROM employees
+                WHERE platform_user_id = ? AND is_active = 1
+                LIMIT 1
+                """,
+                (user_id,),
+            ).fetchone()
+            if employee_row is None:
+                return None
+
+            draft_rows = conn.execute(
+                """
+                SELECT file_id
+                FROM user_drafts
+                WHERE user_id = ? AND file_id IS NOT NULL
+                ORDER BY id ASC
+                """,
+                (user_id,),
+            ).fetchall()
+            if not draft_rows:
+                return None
+
+            employee_id = int(employee_row["id"])
+            file_ids = [str(row["file_id"]) for row in draft_rows]
+
+            conn.executemany(
+                """
+                INSERT INTO photo_queue (employee_id, status, photo_url)
+                VALUES (?, 'pending', ?)
+                """,
+                [(employee_id, file_id) for file_id in file_ids],
+            )
+            conn.execute(
+                """
+                DELETE FROM user_drafts
+                WHERE user_id = ?
+                """,
+                (user_id,),
+            )
+
+        return SubmitDraftResult(queued_count=len(file_ids), employee_id=employee_id)

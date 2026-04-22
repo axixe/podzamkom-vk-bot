@@ -10,6 +10,7 @@ from tests.helpers.in_memory_user_draft_repository import InMemoryUserDraftRepos
 from use_cases.clear_draft import ClearDraftUseCase
 from use_cases.identity.resolve_actor_identity import ResolveActorIdentityUseCase
 from use_cases.process_vk_callback import ProcessVkCallbackUseCase
+from use_cases.submit_draft import SubmitDraftUseCase
 
 
 class ProcessVkCallbackUseCaseTest(unittest.TestCase):
@@ -31,6 +32,7 @@ class ProcessVkCallbackUseCaseTest(unittest.TestCase):
                 actor_identity_repository=actor_identity_repository
             ),
             clear_draft_use_case=ClearDraftUseCase(user_draft_repository=user_draft_repository),
+            submit_draft_use_case=SubmitDraftUseCase(user_draft_repository=user_draft_repository),
         )
 
         result = use_case.execute(
@@ -65,6 +67,7 @@ class ProcessVkCallbackUseCaseTest(unittest.TestCase):
                 actor_identity_repository=actor_identity_repository
             ),
             clear_draft_use_case=ClearDraftUseCase(user_draft_repository=user_draft_repository),
+            submit_draft_use_case=SubmitDraftUseCase(user_draft_repository=user_draft_repository),
         )
 
         result = use_case.execute(
@@ -110,6 +113,7 @@ class ProcessVkCallbackUseCaseTest(unittest.TestCase):
                 actor_identity_repository=actor_identity_repository
             ),
             clear_draft_use_case=ClearDraftUseCase(user_draft_repository=user_draft_repository),
+            submit_draft_use_case=SubmitDraftUseCase(user_draft_repository=user_draft_repository),
         )
 
         result = use_case.execute(

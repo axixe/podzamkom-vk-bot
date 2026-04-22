@@ -31,3 +31,11 @@ class Employee:
     is_active: bool
     created_at: datetime
     updated_at: datetime
+
+
+@dataclass(frozen=True)
+class SubmitDraftResult:
+    """Результат отправки черновика в очередь обработки."""
+
+    queued_count: int
+    employee_id: int
