@@ -234,16 +234,13 @@ class ProcessVkCallbackUseCaseTest(unittest.TestCase):
 
         self.assertEqual(result, "show_main_menu")
 
-    def test_returns_selected_role_for_role_button_text(self) -> None:
+    def test_returns_admin_menu_for_start_command_by_admin_without_employee_role(self) -> None:
         event_repository = InMemoryEventRepository()
         employee_repository = InMemoryEmployeeRepository()
         user_draft_repository = InMemoryUserDraftRepository()
         processed_event_repository = InMemoryProcessedEventRepository()
         admin_notifications_service = SpyAdminNotificationsService()
-        actor_identity_repository = InMemoryActorIdentityRepository(
-            actors=[ActorIdentity(actor_id=15, username="active", platform_user_id=901)]
-        )
-        employee_repository.create(username="active", platform_user_id=901)
+        actor_identity_repository = InMemoryActorIdentityRepository(actors=[])
 
         use_case = ProcessVkCallbackUseCase(
             event_repository=event_repository,
@@ -258,6 +255,7 @@ class ProcessVkCallbackUseCaseTest(unittest.TestCase):
                 user_draft_repository=user_draft_repository,
                 admin_notifications_service=admin_notifications_service,
             ),
+            admin_user_ids=(999,),
         )
 
         result = use_case.execute(
@@ -265,14 +263,14 @@ class ProcessVkCallbackUseCaseTest(unittest.TestCase):
             payload={
                 "object": {
                     "message": {
-                        "from_id": 901,
-                        "text": "Admin",
+                        "from_id": 999,
+                        "text": "Начать",
                     }
                 }
             },
         )
 
-        self.assertEqual(result, "role_selected:admin")
+        self.assertEqual(result, "show_main_menu:admin")
 
 
 if __name__ == "__main__":

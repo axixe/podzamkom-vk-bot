@@ -132,10 +132,9 @@ class VkCallbackHandlerTest(unittest.TestCase):
         self.assertEqual(result, "ok")
         self.outgoing_message_service.send_message.assert_called_once()
         _, kwargs = self.outgoing_message_service.send_message.call_args
-        self.assertIn("Employee", kwargs["text"])
-        self.assertIn("Admin", kwargs["text"])
-        self.assertIn("Guest", kwargs["text"])
-        self.assertIn("🏠 Главное меню", kwargs["text"])
+        self.assertIn("Главное меню сотрудника", kwargs["text"])
+        self.assertIn("/submit", kwargs["text"])
+        self.assertIn("/clear", kwargs["text"])
         self.assertEqual(kwargs["user_id"], 101)
         self.assertIsInstance(kwargs["keyboard"], str)
 
@@ -170,20 +169,39 @@ class VkCallbackHandlerTest(unittest.TestCase):
         self.assertEqual(result, "ok")
         self.process_vk_callback_use_case.execute.assert_called_once()
 
-    def test_sends_reply_to_vk_for_role_selected_result(self) -> None:
-        self.process_vk_callback_use_case.execute.return_value = "role_selected:guest"
+    def test_sends_reply_to_vk_for_admin_menu_result(self) -> None:
+        self.process_vk_callback_use_case.execute.return_value = "show_main_menu:admin"
 
         result = self.handler.handle(
             {
                 "type": "message_new",
                 "secret": "super-secret",
-                "event_id": "evt-role-1",
-                "object": {"message": {"from_id": 101, "text": "Guest"}},
+                "event_id": "evt-admin-1",
+                "object": {"message": {"from_id": 101, "text": "Начать"}},
             }
         )
 
         self.assertEqual(result, "ok")
         self.outgoing_message_service.send_message.assert_called_once()
+        _, kwargs = self.outgoing_message_service.send_message.call_args
+        self.assertIn("Главное меню администратора", kwargs["text"])
+
+    def test_sends_reply_for_employee_not_allowed(self) -> None:
+        self.process_vk_callback_use_case.execute.return_value = "employee_not_allowed"
+
+        result = self.handler.handle(
+            {
+                "type": "message_new",
+                "secret": "super-secret",
+                "event_id": "evt-denied-1",
+                "object": {"message": {"from_id": 101, "text": "Начать"}},
+            }
+        )
+
+        self.assertEqual(result, "ok")
+        self.outgoing_message_service.send_message.assert_called_once()
+        _, kwargs = self.outgoing_message_service.send_message.call_args
+        self.assertIn("Доступ закрыт", kwargs["text"])
 
     def test_retries_without_keyboard_when_first_send_fails(self) -> None:
         self.process_vk_callback_use_case.execute.return_value = "show_main_menu"

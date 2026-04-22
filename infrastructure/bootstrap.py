@@ -69,6 +69,7 @@ def build_container(config: AppConfig) -> AppContainer:
             user_draft_repository=user_draft_repository,
             admin_notifications_service=admin_notifications_service,
         ),
+        admin_user_ids=config.admin_user_ids,
     )
 
     admin_handler = AdminHandler(

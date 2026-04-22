@@ -61,21 +61,32 @@ class VkCallbackHandler:
             return self._confirmation_code
 
         if result == "show_main_menu":
-            self._send_message_new_reply(request_json, self._render_main_menu_message(), self._main_menu_keyboard())
+            self._send_message_new_reply(
+                request_json,
+                self._render_employee_menu_message(),
+                self._main_menu_keyboard(),
+            )
             return "ok"
 
-        if result.startswith("role_selected:"):
-            role = result.split(":", maxsplit=1)[1]
-            self._send_message_new_reply(request_json, self._render_role_message(role), self._main_menu_keyboard())
+        if result == "show_main_menu:admin":
+            self._send_message_new_reply(
+                request_json,
+                self._render_admin_menu_message(),
+                self._main_menu_keyboard(),
+            )
+            return "ok"
+
+        if result == "employee_not_allowed":
+            self._send_message_new_reply(
+                request_json,
+                "Доступ закрыт. У вас нет роли в системе.",
+                self._main_menu_keyboard(),
+            )
             return "ok"
 
         if result.startswith("draft_updated:"):
             draft_count = result.split(":", maxsplit=1)[1]
-            self._send_message_new_reply(
-                request_json,
-                self._with_main_menu(f"Фото сохранены в черновик. Всего фото: {draft_count}"),
-                self._main_menu_keyboard(),
-            )
+            self._send_message_new_reply(request_json, self._with_main_menu(f"Фото сохранены в черновик. Всего фото: {draft_count}"), self._main_menu_keyboard())
             return "ok"
 
         if result.startswith("draft_cleared:"):
@@ -191,26 +202,24 @@ class VkCallbackHandler:
 
         self._logger.info("Admin command processed: from_id=%s result=%s", from_id, admin_result)
 
-    def _render_main_menu_message(self) -> str:
+    def _render_employee_menu_message(self) -> str:
         return (
-            "Привет! Выберите роль в меню ниже:\n"
-            "• Employee\n"
-            "• Admin\n"
-            "• Guest\n\n"
-            "Кнопка: 🏠 Главное меню"
+            "Главное меню сотрудника:\n"
+            "• Отправьте фото в чат, чтобы добавить их в черновик.\n"
+            "• /submit — отправить черновик на проверку.\n"
+            "• /clear — очистить черновик."
         )
 
-    def _render_role_message(self, role: str) -> str:
-        role_labels = {
-            "employee": "Employee",
-            "admin": "Admin",
-            "guest": "Guest",
-        }
-        role_label = role_labels.get(role, role)
-        return self._with_main_menu(f"Роль выбрана: {role_label}.")
+    def _render_admin_menu_message(self) -> str:
+        return (
+            "Главное меню администратора:\n"
+            "• /next — взять следующий элемент на проверку.\n"
+            "• /approve <id> — подтвердить элемент.\n"
+            "• /reject <id> <reason> — отклонить элемент."
+        )
 
     def _with_main_menu(self, message: str) -> str:
-        return f"{message}\n\n{self._render_main_menu_message()}"
+        return f"{message}\n\n🏠 Главное меню"
 
     def _send_message_new_reply(self, request_json: dict[str, Any], text: str, keyboard: str | None = None) -> None:
         user_id = self._extract_from_id(request_json)
@@ -248,11 +257,6 @@ class VkCallbackHandler:
         keyboard = {
             "one_time": False,
             "buttons": [
-                [
-                    {"action": {"type": "text", "label": "Employee"}, "color": "primary"},
-                    {"action": {"type": "text", "label": "Admin"}, "color": "secondary"},
-                    {"action": {"type": "text", "label": "Guest"}, "color": "secondary"},
-                ],
                 [
                     {"action": {"type": "text", "label": "🏠 Главное меню"}, "color": "positive"},
                 ],

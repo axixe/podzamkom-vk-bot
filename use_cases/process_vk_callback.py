@@ -25,6 +25,7 @@ class ProcessVkCallbackUseCase:
     resolve_actor_identity_use_case: ResolveActorIdentityUseCase
     clear_draft_use_case: ClearDraftUseCase
     submit_draft_use_case: SubmitDraftUseCase
+    admin_user_ids: tuple[int, ...] = ()
 
     def execute(self, event_type: str, payload: dict[str, Any]) -> str:
         event_id = self._extract_event_id(payload)
@@ -46,6 +47,12 @@ class ProcessVkCallbackUseCase:
             if from_id is None:
                 return "ok"
 
+            text = self._extract_text(payload)
+            if self._is_start_command(text) or self._is_home_menu_command(text):
+                if from_id in self.admin_user_ids:
+                    return "show_main_menu:admin"
+                return "show_main_menu"
+
             actor = self.resolve_actor_identity_use_case.execute(
                 platform_user_id=from_id,
                 username=self._extract_username(payload),
@@ -56,14 +63,6 @@ class ProcessVkCallbackUseCase:
             employee = self.employee_repository.find_active_by_platform_user_id(actor.platform_user_id)
             if employee is None:
                 return "employee_not_allowed"
-
-            text = self._extract_text(payload)
-            if self._is_start_command(text) or self._is_home_menu_command(text):
-                return "show_main_menu"
-
-            selected_role = self._extract_role_selection(text)
-            if selected_role is not None:
-                return f"role_selected:{selected_role}"
 
             if self._is_clear_command(text):
                 deleted_count = self.clear_draft_use_case.execute(user_id=actor.platform_user_id)
@@ -198,13 +197,3 @@ class ProcessVkCallbackUseCase:
     def _is_home_menu_command(text: str) -> bool:
         normalized = text.strip().lower()
         return normalized in {"🏠 главное меню", "главное меню", "/menu", "menu"}
-
-    @staticmethod
-    def _extract_role_selection(text: str) -> str | None:
-        normalized = text.strip().lower()
-        role_map = {
-            "employee": "employee",
-            "admin": "admin",
-            "guest": "guest",
-        }
-        return role_map.get(normalized)
