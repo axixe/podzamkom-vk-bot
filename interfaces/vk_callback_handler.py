@@ -82,7 +82,7 @@ class VkCallbackHandler:
             return
 
         try:
-            admin_result = self._admin_handler.handle_text(text)
+            admin_result = self._admin_handler.handle_text(text=text, from_id=from_id)
         except Exception:  # noqa: BLE001
             self._logger.exception("Admin command failed: from_id=%s text=%s", from_id, text)
             return

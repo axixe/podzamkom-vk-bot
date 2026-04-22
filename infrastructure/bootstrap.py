@@ -15,8 +15,11 @@ from use_cases.employees import (
     ListEmployeesUseCase,
 )
 from use_cases.identity.resolve_actor_identity import ResolveActorIdentityUseCase
+from use_cases.approve_queue_item import ApproveQueueItemUseCase
 from use_cases.process_vk_callback import ProcessVkCallbackUseCase
+from use_cases.reject_queue_item import RejectQueueItemUseCase
 from use_cases.submit_draft import SubmitDraftUseCase
+from use_cases.take_next_pending_for_review import TakeNextPendingForReviewUseCase
 
 
 @dataclass(frozen=True)
@@ -56,6 +59,18 @@ def build_container(config: AppConfig) -> AppContainer:
         create_employee_use_case=CreateEmployeeUseCase(employee_repository=employee_repository),
         list_employees_use_case=ListEmployeesUseCase(employee_repository=employee_repository),
         deactivate_employee_use_case=DeactivateEmployeeUseCase(employee_repository=employee_repository),
+        take_next_pending_for_review_use_case=TakeNextPendingForReviewUseCase(
+            user_draft_repository=user_draft_repository,
+            admin_user_ids=config.admin_user_ids,
+        ),
+        approve_queue_item_use_case=ApproveQueueItemUseCase(
+            user_draft_repository=user_draft_repository,
+            admin_user_ids=config.admin_user_ids,
+        ),
+        reject_queue_item_use_case=RejectQueueItemUseCase(
+            user_draft_repository=user_draft_repository,
+            admin_user_ids=config.admin_user_ids,
+        ),
     )
 
     return AppContainer(
