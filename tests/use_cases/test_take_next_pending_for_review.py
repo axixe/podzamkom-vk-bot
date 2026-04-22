@@ -20,6 +20,7 @@ class TakeNextPendingForReviewUseCaseTest(unittest.TestCase):
                     photo_url="photo_1",
                     status="pending",
                     review_started_at=None,
+                    reviewed_at=None,
                 ),
                 PhotoQueueItemForReview(
                     id=2,
@@ -27,6 +28,7 @@ class TakeNextPendingForReviewUseCaseTest(unittest.TestCase):
                     photo_url="photo_2",
                     status="pending",
                     review_started_at=None,
+                    reviewed_at=None,
                 ),
             ]
         )
@@ -53,6 +55,7 @@ class TakeNextPendingForReviewUseCaseTest(unittest.TestCase):
                     photo_url="photo_1",
                     status="in_review",
                     review_started_at=datetime.now(timezone.utc),
+                    reviewed_at=None,
                 )
             ]
         )

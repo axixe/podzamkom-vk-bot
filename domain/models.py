@@ -50,3 +50,4 @@ class PhotoQueueItemForReview:
     photo_url: str | None
     status: str
     review_started_at: datetime | None
+    reviewed_at: datetime | None

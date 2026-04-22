@@ -38,6 +38,35 @@ class InMemoryUserDraftRepository:
                 photo_url=item.photo_url,
                 status="in_review",
                 review_started_at=datetime.now(timezone.utc),
+                reviewed_at=None,
+            )
+            self._queue[index] = updated
+            return updated
+
+        return None
+
+    def approve_queue_item(self, queue_item_id: int) -> PhotoQueueItemForReview | None:
+        return self._resolve_queue_item(queue_item_id=queue_item_id, decision_status="approved")
+
+    def reject_queue_item(self, queue_item_id: int) -> PhotoQueueItemForReview | None:
+        return self._resolve_queue_item(queue_item_id=queue_item_id, decision_status="rejected")
+
+    def _resolve_queue_item(
+        self,
+        queue_item_id: int,
+        decision_status: str,
+    ) -> PhotoQueueItemForReview | None:
+        for index, item in enumerate(self._queue):
+            if item.id != queue_item_id or item.status != "in_review":
+                continue
+
+            updated = PhotoQueueItemForReview(
+                id=item.id,
+                employee_id=item.employee_id,
+                photo_url=item.photo_url,
+                status=decision_status,
+                review_started_at=item.review_started_at,
+                reviewed_at=datetime.now(timezone.utc),
             )
             self._queue[index] = updated
             return updated
