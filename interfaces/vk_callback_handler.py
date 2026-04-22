@@ -25,13 +25,14 @@ class VkCallbackHandler:
 
     def handle(self, request_json: dict[str, Any]) -> str:
         self._logger.info("Incoming VK callback: %s", payload_summary(request_json))
-
-        request_secret = str(request_json.get("secret", ""))
-        if request_secret != self._callback_secret:
-            self._logger.warning("Callback rejected: secret mismatch")
-            return "forbidden"
-
         event_type = str(request_json.get("type", ""))
+        validation_error = self._validate_request(request_json, event_type)
+        if validation_error is not None:
+            self._logger.warning("Callback rejected: %s", validation_error)
+            return "ok"
+
+        if event_type == "confirmation":
+            return self._confirmation_code
 
         if event_type == "message_new":
             self._handle_admin_commands(request_json)
@@ -64,6 +65,27 @@ class VkCallbackHandler:
             )
 
         return "ok"
+
+    def _validate_request(self, request_json: dict[str, Any], event_type: str) -> str | None:
+        if not event_type:
+            return "missing event type"
+
+        request_secret = request_json.get("secret")
+        if event_type == "confirmation":
+            if request_secret is None:
+                return None
+            if not isinstance(request_secret, str):
+                return "invalid secret format for confirmation event"
+            if request_secret != self._callback_secret:
+                return "secret mismatch for confirmation event"
+            return None
+
+        if not isinstance(request_secret, str):
+            return "missing secret"
+        if request_secret != self._callback_secret:
+            return "secret mismatch"
+
+        return None
 
     def _handle_admin_commands(self, request_json: dict[str, Any]) -> None:
         event_object = request_json.get("object")
