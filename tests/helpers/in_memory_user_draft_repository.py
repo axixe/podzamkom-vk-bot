@@ -1,3 +1,6 @@
+from domain.models import SubmitDraftResult
+
+
 class InMemoryUserDraftRepository:
     def __init__(self) -> None:
         self._drafts: dict[int, list[str]] = {}
@@ -12,6 +15,14 @@ class InMemoryUserDraftRepository:
         deleted = len(self._drafts.get(user_id, []))
         self._drafts.pop(user_id, None)
         return deleted
+
+    def submit_draft(self, user_id: int) -> SubmitDraftResult | None:
+        file_ids = self._drafts.get(user_id, [])
+        if not file_ids:
+            return None
+
+        self._drafts.pop(user_id, None)
+        return SubmitDraftResult(queued_count=len(file_ids), employee_id=user_id)
 
     @property
     def drafts(self) -> dict[int, list[str]]:

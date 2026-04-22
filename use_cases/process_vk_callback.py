@@ -6,6 +6,7 @@ from domain.models import VkCallbackEvent
 from domain.repositories import EmployeeRepository, EventRepository, UserDraftRepository
 from use_cases.clear_draft import ClearDraftUseCase
 from use_cases.identity.resolve_actor_identity import ResolveActorIdentityUseCase
+from use_cases.submit_draft import DraftIsEmptyError, SubmitDraftUseCase
 
 
 @dataclass(slots=True)
@@ -17,6 +18,7 @@ class ProcessVkCallbackUseCase:
     user_draft_repository: UserDraftRepository
     resolve_actor_identity_use_case: ResolveActorIdentityUseCase
     clear_draft_use_case: ClearDraftUseCase
+    submit_draft_use_case: SubmitDraftUseCase
 
     def execute(self, event_type: str, payload: dict[str, Any]) -> str:
         event = VkCallbackEvent(
@@ -49,6 +51,13 @@ class ProcessVkCallbackUseCase:
             if self._is_clear_command(text):
                 deleted_count = self.clear_draft_use_case.execute(user_id=actor.platform_user_id)
                 return f"draft_cleared:{deleted_count}"
+
+            if self._is_submit_command(text):
+                try:
+                    submitted = self.submit_draft_use_case.execute(user_id=actor.platform_user_id)
+                except DraftIsEmptyError:
+                    return "draft_empty"
+                return f"draft_submitted:{submitted.queued_count}:{submitted.employee_id}"
 
             file_ids = self._extract_photo_file_ids(payload)
             if not file_ids:
@@ -147,3 +156,8 @@ class ProcessVkCallbackUseCase:
     def _is_clear_command(text: str) -> bool:
         normalized = text.strip().lower()
         return normalized in {"/clear", "clear", "очистить", "очистка"}
+
+    @staticmethod
+    def _is_submit_command(text: str) -> bool:
+        normalized = text.strip().lower()
+        return normalized in {"/submit", "submit", "отправить", "отправка"}

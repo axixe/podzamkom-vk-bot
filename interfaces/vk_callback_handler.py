@@ -52,6 +52,17 @@ class VkCallbackHandler:
             deleted_count = result.split(":", maxsplit=1)[1]
             return f"Черновик очищен. Удалено фото: {deleted_count}"
 
+        if result == "draft_empty":
+            return "Черновик пуст — отправлять нечего."
+
+        if result.startswith("draft_submitted:"):
+            _, queued_count, employee_id = result.split(":", maxsplit=2)
+            return (
+                "Черновик отправлен в очередь. "
+                f"Фото в очереди: {queued_count}. "
+                f"employee_id: {employee_id}"
+            )
+
         return "ok"
 
     def _handle_admin_commands(self, request_json: dict[str, Any]) -> None:
