@@ -44,6 +44,10 @@ class VkCallbackHandler:
         if result == "need_confirmation_code":
             return self._confirmation_code
 
+        if result.startswith("draft_updated:"):
+            draft_count = result.split(":", maxsplit=1)[1]
+            return f"Фото сохранены в черновик. Всего фото: {draft_count}"
+
         return "ok"
 
     def _handle_admin_commands(self, request_json: dict[str, Any]) -> None:
