@@ -25,10 +25,24 @@ class VkCallbackHandler:
 
     def handle(self, request_json: dict[str, Any]) -> str:
         self._logger.info("Incoming VK callback: %s", payload_summary(request_json))
-        event_type = str(request_json.get("type", ""))
+        event_type_raw = request_json.get("type")
+        event_type = event_type_raw if isinstance(event_type_raw, str) else ""
+        correlation_id = self._extract_correlation_id(request_json)
         validation_error = self._validate_request(request_json, event_type)
         if validation_error is not None:
-            self._logger.warning("Callback rejected: %s", validation_error)
+            self._logger.warning(
+                "Callback rejected: correlation_id=%s error=%s",
+                correlation_id,
+                validation_error,
+            )
+            return "ok"
+
+        if event_type not in {"confirmation", "message_new"}:
+            self._logger.info(
+                "Ignoring unsupported event type: correlation_id=%s event_type=%s",
+                correlation_id,
+                event_type,
+            )
             return "ok"
 
         result = self._process_vk_callback_use_case.execute(
@@ -81,6 +95,40 @@ class VkCallbackHandler:
             return "missing secret"
         if request_secret != self._callback_secret:
             return "secret mismatch"
+
+        event_id = request_json.get("event_id")
+        if not isinstance(event_id, str) or not event_id.strip():
+            return "missing event_id"
+
+        if event_type == "message_new":
+            return self._validate_message_new_fields(request_json)
+
+        return None
+
+    @staticmethod
+    def _extract_correlation_id(request_json: dict[str, Any]) -> str:
+        correlation_id = request_json.get("event_id")
+        if isinstance(correlation_id, str) and correlation_id.strip():
+            return correlation_id.strip()
+        return "<missing-event-id>"
+
+    @staticmethod
+    def _validate_message_new_fields(request_json: dict[str, Any]) -> str | None:
+        event_object = request_json.get("object")
+        if not isinstance(event_object, dict):
+            return "missing object payload"
+
+        message = event_object.get("message")
+        message_dict = message if isinstance(message, dict) else event_object
+
+        from_id = message_dict.get("from_id")
+        if not isinstance(from_id, int):
+            return "missing actor/user identifier (from_id)"
+
+        has_attachments = isinstance(message_dict.get("attachments"), list)
+        has_payload = "payload" in message_dict
+        if not has_attachments and not has_payload:
+            return "missing attachments/payload"
 
         return None
 
