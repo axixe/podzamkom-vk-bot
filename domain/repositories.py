@@ -1,6 +1,12 @@
 from typing import Protocol
 
-from domain.models import ActorIdentity, Employee, SubmitDraftResult, VkCallbackEvent
+from domain.models import (
+    ActorIdentity,
+    Employee,
+    PhotoQueueItemForReview,
+    SubmitDraftResult,
+    VkCallbackEvent,
+)
 
 
 class EventRepository(Protocol):
@@ -48,4 +54,7 @@ class UserDraftRepository(Protocol):
         ...
 
     def submit_draft(self, user_id: int) -> SubmitDraftResult | None:
+        ...
+
+    def take_next_pending_for_review(self) -> PhotoQueueItemForReview | None:
         ...
