@@ -43,3 +43,6 @@ class UserDraftRepository(Protocol):
 
     def count_photos_by_user_id(self, user_id: int) -> int:
         ...
+
+    def clear_by_user_id(self, user_id: int) -> int:
+        ...

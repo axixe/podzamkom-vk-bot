@@ -48,6 +48,10 @@ class VkCallbackHandler:
             draft_count = result.split(":", maxsplit=1)[1]
             return f"Фото сохранены в черновик. Всего фото: {draft_count}"
 
+        if result.startswith("draft_cleared:"):
+            deleted_count = result.split(":", maxsplit=1)[1]
+            return f"Черновик очищен. Удалено фото: {deleted_count}"
+
         return "ok"
 
     def _handle_admin_commands(self, request_json: dict[str, Any]) -> None:

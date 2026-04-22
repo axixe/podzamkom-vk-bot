@@ -8,6 +8,7 @@ from infrastructure.repositories.sqlite_actor_identity_repository import SqliteA
 from infrastructure.repositories.sqlite_employee_repository import SqliteEmployeeRepository
 from infrastructure.repositories.sqlite_user_draft_repository import SqliteUserDraftRepository
 from interfaces.admin_handler import AdminHandler
+from use_cases.clear_draft import ClearDraftUseCase
 from use_cases.employees import (
     CreateEmployeeUseCase,
     DeactivateEmployeeUseCase,
@@ -46,6 +47,7 @@ def build_container(config: AppConfig) -> AppContainer:
         employee_repository=employee_repository,
         user_draft_repository=user_draft_repository,
         resolve_actor_identity_use_case=resolve_actor_identity_use_case,
+        clear_draft_use_case=ClearDraftUseCase(user_draft_repository=user_draft_repository),
     )
 
     admin_handler = AdminHandler(
