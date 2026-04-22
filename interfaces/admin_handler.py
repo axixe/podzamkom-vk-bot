@@ -29,7 +29,10 @@ class AdminHandler:
                 return "create_usage:/create <username> [platform_user_id]"
 
             username = parts[1]
-            platform_user_id = int(parts[2]) if len(parts) > 2 else None
+            try:
+                platform_user_id = int(parts[2]) if len(parts) > 2 else None
+            except ValueError:
+                return "create_usage:/create <username> [platform_user_id]"
             employee = self.create_employee_use_case.execute(
                 username=username,
                 platform_user_id=platform_user_id,
@@ -41,7 +44,10 @@ class AdminHandler:
             if len(parts) < 2:
                 return "deactivate_usage:/deactivate <employee_id>"
 
-            employee_id = int(parts[1])
+            try:
+                employee_id = int(parts[1])
+            except ValueError:
+                return "deactivate_usage:/deactivate <employee_id>"
             employee = self.deactivate_employee_use_case.execute(employee_id=employee_id)
             if employee is None:
                 return "employee_not_found"

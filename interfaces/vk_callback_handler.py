@@ -62,5 +62,10 @@ class VkCallbackHandler:
         if from_id not in self._admin_user_ids:
             return
 
-        admin_result = self._admin_handler.handle_text(text)
+        try:
+            admin_result = self._admin_handler.handle_text(text)
+        except Exception:  # noqa: BLE001
+            self._logger.exception("Admin command failed: from_id=%s text=%s", from_id, text)
+            return
+
         self._logger.info("Admin command processed: from_id=%s result=%s", from_id, admin_result)

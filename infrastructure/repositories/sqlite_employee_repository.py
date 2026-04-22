@@ -31,18 +31,64 @@ class SqliteEmployeeRepository:
 
     def create(self, username: str, platform_user_id: int | None = None) -> Employee:
         now = datetime.now(timezone.utc).isoformat()
-        with self._connect() as conn:
-            cursor = conn.execute(
-                """
-                INSERT INTO employees (username, platform_user_id, is_active, created_at, updated_at)
-                VALUES (?, ?, 1, ?, ?)
-                """,
-                (username, platform_user_id, now, now),
-            )
-            row = conn.execute(
-                "SELECT * FROM employees WHERE id = ?",
-                (cursor.lastrowid,),
-            ).fetchone()
+
+        if platform_user_id is None:
+            with self._connect() as conn:
+                cursor = conn.execute(
+                    """
+                    INSERT INTO employees (username, platform_user_id, is_active, created_at, updated_at)
+                    VALUES (?, NULL, 1, ?, ?)
+                    """,
+                    (username, now, now),
+                )
+                row = conn.execute(
+                    "SELECT * FROM employees WHERE id = ?",
+                    (cursor.lastrowid,),
+                ).fetchone()
+
+            assert row is not None
+            return self._from_row(row)
+
+        try:
+            with self._connect() as conn:
+                cursor = conn.execute(
+                    """
+                    INSERT INTO employees (username, platform_user_id, is_active, created_at, updated_at)
+                    VALUES (?, ?, 1, ?, ?)
+                    """,
+                    (username, platform_user_id, now, now),
+                )
+                row = conn.execute(
+                    "SELECT * FROM employees WHERE id = ?",
+                    (cursor.lastrowid,),
+                ).fetchone()
+        except sqlite3.IntegrityError as exc:
+            if "employees.platform_user_id" not in str(exc):
+                raise
+
+            with self._connect() as conn:
+                existing = conn.execute(
+                    "SELECT * FROM employees WHERE platform_user_id = ? LIMIT 1",
+                    (platform_user_id,),
+                ).fetchone()
+
+                if existing is None:
+                    raise
+
+                conn.execute(
+                    """
+                    UPDATE employees
+                    SET username = ?,
+                        is_active = 1,
+                        updated_at = ?
+                    WHERE id = ?
+                    """,
+                    (username, now, existing["id"]),
+                )
+                row = conn.execute(
+                    "SELECT * FROM employees WHERE id = ?",
+                    (existing["id"],),
+                ).fetchone()
 
         assert row is not None
         return self._from_row(row)
