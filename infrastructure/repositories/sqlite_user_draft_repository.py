@@ -35,3 +35,15 @@ class SqliteUserDraftRepository:
             ).fetchone()
 
         return int(row["total"]) if row is not None else 0
+
+    def clear_by_user_id(self, user_id: int) -> int:
+        with self._connect() as conn:
+            cursor = conn.execute(
+                """
+                DELETE FROM user_drafts
+                WHERE user_id = ?
+                """,
+                (user_id,),
+            )
+
+        return int(cursor.rowcount)

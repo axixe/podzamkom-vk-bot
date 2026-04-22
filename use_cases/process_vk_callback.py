@@ -4,6 +4,7 @@ from typing import Any
 
 from domain.models import VkCallbackEvent
 from domain.repositories import EmployeeRepository, EventRepository, UserDraftRepository
+from use_cases.clear_draft import ClearDraftUseCase
 from use_cases.identity.resolve_actor_identity import ResolveActorIdentityUseCase
 
 
@@ -15,6 +16,7 @@ class ProcessVkCallbackUseCase:
     employee_repository: EmployeeRepository
     user_draft_repository: UserDraftRepository
     resolve_actor_identity_use_case: ResolveActorIdentityUseCase
+    clear_draft_use_case: ClearDraftUseCase
 
     def execute(self, event_type: str, payload: dict[str, Any]) -> str:
         event = VkCallbackEvent(
@@ -32,10 +34,6 @@ class ProcessVkCallbackUseCase:
             if from_id is None:
                 return "ok"
 
-            file_ids = self._extract_photo_file_ids(payload)
-            if not file_ids:
-                return "ok"
-
             actor = self.resolve_actor_identity_use_case.execute(
                 platform_user_id=from_id,
                 username=self._extract_username(payload),
@@ -46,6 +44,15 @@ class ProcessVkCallbackUseCase:
             employee = self.employee_repository.find_active_by_platform_user_id(actor.platform_user_id)
             if employee is None:
                 return "employee_not_allowed"
+
+            text = self._extract_text(payload)
+            if self._is_clear_command(text):
+                deleted_count = self.clear_draft_use_case.execute(user_id=actor.platform_user_id)
+                return f"draft_cleared:{deleted_count}"
+
+            file_ids = self._extract_photo_file_ids(payload)
+            if not file_ids:
+                return "ok"
 
             for file_id in file_ids:
                 self.user_draft_repository.add_photo(user_id=actor.platform_user_id, file_id=file_id)
@@ -124,3 +131,19 @@ class ProcessVkCallbackUseCase:
         message_dict = message if isinstance(message, dict) else event_object
         username = message_dict.get("username")
         return username if isinstance(username, str) else ""
+
+    @staticmethod
+    def _extract_text(payload: dict[str, Any]) -> str:
+        event_object = payload.get("object")
+        if not isinstance(event_object, dict):
+            return ""
+
+        message = event_object.get("message")
+        message_dict = message if isinstance(message, dict) else event_object
+        text = message_dict.get("text")
+        return text if isinstance(text, str) else ""
+
+    @staticmethod
+    def _is_clear_command(text: str) -> bool:
+        normalized = text.strip().lower()
+        return normalized in {"/clear", "clear", "очистить", "очистка"}
