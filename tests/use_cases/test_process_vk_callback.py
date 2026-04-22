@@ -191,7 +191,7 @@ class ProcessVkCallbackUseCaseTest(unittest.TestCase):
         second_result = use_case.execute(event_type="message_new", payload=payload)
 
         self.assertEqual(first_result, "draft_submitted:1:700")
-        self.assertEqual(second_result, "ok")
+        self.assertEqual(second_result, "duplicate_event")
         self.assertEqual(admin_notifications_service.notified_queued_counts, [1])
 
 

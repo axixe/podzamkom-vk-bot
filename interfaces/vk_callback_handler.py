@@ -31,16 +31,13 @@ class VkCallbackHandler:
             self._logger.warning("Callback rejected: %s", validation_error)
             return "ok"
 
-        if event_type == "confirmation":
-            return self._confirmation_code
-
-        if event_type == "message_new":
-            self._handle_admin_commands(request_json)
-
         result = self._process_vk_callback_use_case.execute(
             event_type=event_type,
             payload=request_json,
         )
+
+        if event_type == "message_new" and result != "duplicate_event":
+            self._handle_admin_commands(request_json)
 
         if result == "need_confirmation_code":
             return self._confirmation_code

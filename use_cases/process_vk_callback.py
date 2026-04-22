@@ -29,7 +29,7 @@ class ProcessVkCallbackUseCase:
     def execute(self, event_type: str, payload: dict[str, Any]) -> str:
         event_id = self._extract_event_id(payload)
         if event_id is not None and not self.processed_event_repository.mark_processed_if_new(event_id):
-            return "ok"
+            return "duplicate_event"
 
         event = VkCallbackEvent(
             event_type=event_type,
