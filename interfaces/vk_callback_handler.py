@@ -221,7 +221,14 @@ class VkCallbackHandler:
         try:
             self._outgoing_message_service.send_message(user_id=user_id, text=text, keyboard=keyboard)
         except Exception:  # noqa: BLE001
-            self._logger.exception("Failed to send VK message: user_id=%s", user_id)
+            self._logger.exception("Failed to send VK message with keyboard: user_id=%s", user_id)
+            if keyboard is None:
+                return
+
+            try:
+                self._outgoing_message_service.send_message(user_id=user_id, text=text, keyboard=None)
+            except Exception:  # noqa: BLE001
+                self._logger.exception("Failed to send VK message without keyboard: user_id=%s", user_id)
 
     @staticmethod
     def _extract_from_id(request_json: dict[str, Any]) -> int | None:

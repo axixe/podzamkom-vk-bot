@@ -185,6 +185,26 @@ class VkCallbackHandlerTest(unittest.TestCase):
         self.assertEqual(result, "ok")
         self.outgoing_message_service.send_message.assert_called_once()
 
+    def test_retries_without_keyboard_when_first_send_fails(self) -> None:
+        self.process_vk_callback_use_case.execute.return_value = "show_main_menu"
+        self.outgoing_message_service.send_message.side_effect = [RuntimeError("vk error"), None]
+
+        result = self.handler.handle(
+            {
+                "type": "message_new",
+                "secret": "super-secret",
+                "event_id": "evt-retry-1",
+                "object": {"message": {"from_id": 101, "text": "Начать"}},
+            }
+        )
+
+        self.assertEqual(result, "ok")
+        self.assertEqual(self.outgoing_message_service.send_message.call_count, 2)
+        first_call = self.outgoing_message_service.send_message.call_args_list[0].kwargs
+        second_call = self.outgoing_message_service.send_message.call_args_list[1].kwargs
+        self.assertIsInstance(first_call["keyboard"], str)
+        self.assertIsNone(second_call["keyboard"])
+
 
 if __name__ == "__main__":
     unittest.main()
