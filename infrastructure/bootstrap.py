@@ -6,7 +6,14 @@ from infrastructure.db.migrator import DatabaseMigrator
 from infrastructure.repositories.in_memory_event_repository import InMemoryEventRepository
 from infrastructure.repositories.sqlite_actor_identity_repository import SqliteActorIdentityRepository
 from infrastructure.repositories.sqlite_employee_repository import SqliteEmployeeRepository
+from infrastructure.repositories.sqlite_processed_event_repository import (
+    SqliteProcessedEventRepository,
+)
 from infrastructure.repositories.sqlite_user_draft_repository import SqliteUserDraftRepository
+from infrastructure.services.logging_admin_notifications_service import (
+    LoggingAdminNotificationsService,
+)
+from infrastructure.logger import get_logger
 from interfaces.admin_handler import AdminHandler
 from use_cases.clear_draft import ClearDraftUseCase
 from use_cases.employees import (
@@ -45,14 +52,23 @@ def build_container(config: AppConfig) -> AppContainer:
     resolve_actor_identity_use_case = ResolveActorIdentityUseCase(
         actor_identity_repository=actor_identity_repository
     )
+    processed_event_repository = SqliteProcessedEventRepository(db_path=config.db_path)
+    admin_notifications_service = LoggingAdminNotificationsService(
+        admin_user_ids=config.admin_user_ids,
+        logger=get_logger(),
+    )
 
     process_vk_callback_use_case = ProcessVkCallbackUseCase(
         event_repository=event_repository,
+        processed_event_repository=processed_event_repository,
         employee_repository=employee_repository,
         user_draft_repository=user_draft_repository,
         resolve_actor_identity_use_case=resolve_actor_identity_use_case,
         clear_draft_use_case=ClearDraftUseCase(user_draft_repository=user_draft_repository),
-        submit_draft_use_case=SubmitDraftUseCase(user_draft_repository=user_draft_repository),
+        submit_draft_use_case=SubmitDraftUseCase(
+            user_draft_repository=user_draft_repository,
+            admin_notifications_service=admin_notifications_service,
+        ),
     )
 
     admin_handler = AdminHandler(

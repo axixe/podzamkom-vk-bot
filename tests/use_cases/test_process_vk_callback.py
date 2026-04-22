@@ -6,7 +6,9 @@ from infrastructure.repositories.in_memory_actor_identity_repository import (
     InMemoryActorIdentityRepository,
 )
 from tests.helpers.in_memory_employee_repository import InMemoryEmployeeRepository
+from tests.helpers.in_memory_processed_event_repository import InMemoryProcessedEventRepository
 from tests.helpers.in_memory_user_draft_repository import InMemoryUserDraftRepository
+from tests.helpers.spy_admin_notifications_service import SpyAdminNotificationsService
 from use_cases.clear_draft import ClearDraftUseCase
 from use_cases.identity.resolve_actor_identity import ResolveActorIdentityUseCase
 from use_cases.process_vk_callback import ProcessVkCallbackUseCase
@@ -18,6 +20,8 @@ class ProcessVkCallbackUseCaseTest(unittest.TestCase):
         event_repository = InMemoryEventRepository()
         employee_repository = InMemoryEmployeeRepository()
         user_draft_repository = InMemoryUserDraftRepository()
+        processed_event_repository = InMemoryProcessedEventRepository()
+        admin_notifications_service = SpyAdminNotificationsService()
         actor_identity_repository = InMemoryActorIdentityRepository(
             actors=[ActorIdentity(actor_id=1, username="inactive", platform_user_id=300)]
         )
@@ -26,13 +30,17 @@ class ProcessVkCallbackUseCaseTest(unittest.TestCase):
 
         use_case = ProcessVkCallbackUseCase(
             event_repository=event_repository,
+            processed_event_repository=processed_event_repository,
             employee_repository=employee_repository,
             user_draft_repository=user_draft_repository,
             resolve_actor_identity_use_case=ResolveActorIdentityUseCase(
                 actor_identity_repository=actor_identity_repository
             ),
             clear_draft_use_case=ClearDraftUseCase(user_draft_repository=user_draft_repository),
-            submit_draft_use_case=SubmitDraftUseCase(user_draft_repository=user_draft_repository),
+            submit_draft_use_case=SubmitDraftUseCase(
+                user_draft_repository=user_draft_repository,
+                admin_notifications_service=admin_notifications_service,
+            ),
         )
 
         result = use_case.execute(
@@ -54,6 +62,8 @@ class ProcessVkCallbackUseCaseTest(unittest.TestCase):
         event_repository = InMemoryEventRepository()
         employee_repository = InMemoryEmployeeRepository()
         user_draft_repository = InMemoryUserDraftRepository()
+        processed_event_repository = InMemoryProcessedEventRepository()
+        admin_notifications_service = SpyAdminNotificationsService()
         actor_identity_repository = InMemoryActorIdentityRepository(
             actors=[ActorIdentity(actor_id=10, username="active", platform_user_id=700)]
         )
@@ -61,13 +71,17 @@ class ProcessVkCallbackUseCaseTest(unittest.TestCase):
 
         use_case = ProcessVkCallbackUseCase(
             event_repository=event_repository,
+            processed_event_repository=processed_event_repository,
             employee_repository=employee_repository,
             user_draft_repository=user_draft_repository,
             resolve_actor_identity_use_case=ResolveActorIdentityUseCase(
                 actor_identity_repository=actor_identity_repository
             ),
             clear_draft_use_case=ClearDraftUseCase(user_draft_repository=user_draft_repository),
-            submit_draft_use_case=SubmitDraftUseCase(user_draft_repository=user_draft_repository),
+            submit_draft_use_case=SubmitDraftUseCase(
+                user_draft_repository=user_draft_repository,
+                admin_notifications_service=admin_notifications_service,
+            ),
         )
 
         result = use_case.execute(
@@ -98,6 +112,8 @@ class ProcessVkCallbackUseCaseTest(unittest.TestCase):
         event_repository = InMemoryEventRepository()
         employee_repository = InMemoryEmployeeRepository()
         user_draft_repository = InMemoryUserDraftRepository()
+        processed_event_repository = InMemoryProcessedEventRepository()
+        admin_notifications_service = SpyAdminNotificationsService()
         actor_identity_repository = InMemoryActorIdentityRepository(
             actors=[ActorIdentity(actor_id=10, username="active", platform_user_id=700)]
         )
@@ -107,13 +123,17 @@ class ProcessVkCallbackUseCaseTest(unittest.TestCase):
 
         use_case = ProcessVkCallbackUseCase(
             event_repository=event_repository,
+            processed_event_repository=processed_event_repository,
             employee_repository=employee_repository,
             user_draft_repository=user_draft_repository,
             resolve_actor_identity_use_case=ResolveActorIdentityUseCase(
                 actor_identity_repository=actor_identity_repository
             ),
             clear_draft_use_case=ClearDraftUseCase(user_draft_repository=user_draft_repository),
-            submit_draft_use_case=SubmitDraftUseCase(user_draft_repository=user_draft_repository),
+            submit_draft_use_case=SubmitDraftUseCase(
+                user_draft_repository=user_draft_repository,
+                admin_notifications_service=admin_notifications_service,
+            ),
         )
 
         result = use_case.execute(
@@ -130,6 +150,49 @@ class ProcessVkCallbackUseCaseTest(unittest.TestCase):
 
         self.assertEqual(result, "draft_cleared:2")
         self.assertEqual(user_draft_repository.count_photos_by_user_id(700), 0)
+
+    def test_ignores_duplicate_event_id_and_skips_second_submit_notification(self) -> None:
+        event_repository = InMemoryEventRepository()
+        employee_repository = InMemoryEmployeeRepository()
+        user_draft_repository = InMemoryUserDraftRepository()
+        processed_event_repository = InMemoryProcessedEventRepository()
+        admin_notifications_service = SpyAdminNotificationsService()
+        actor_identity_repository = InMemoryActorIdentityRepository(
+            actors=[ActorIdentity(actor_id=10, username="active", platform_user_id=700)]
+        )
+        employee_repository.create(username="active", platform_user_id=700)
+        user_draft_repository.add_photo(user_id=700, file_id="file_1")
+
+        use_case = ProcessVkCallbackUseCase(
+            event_repository=event_repository,
+            processed_event_repository=processed_event_repository,
+            employee_repository=employee_repository,
+            user_draft_repository=user_draft_repository,
+            resolve_actor_identity_use_case=ResolveActorIdentityUseCase(
+                actor_identity_repository=actor_identity_repository
+            ),
+            clear_draft_use_case=ClearDraftUseCase(user_draft_repository=user_draft_repository),
+            submit_draft_use_case=SubmitDraftUseCase(
+                user_draft_repository=user_draft_repository,
+                admin_notifications_service=admin_notifications_service,
+            ),
+        )
+
+        payload = {
+            "event_id": "evt-1",
+            "object": {
+                "message": {
+                    "from_id": 700,
+                    "text": "/submit",
+                }
+            },
+        }
+        first_result = use_case.execute(event_type="message_new", payload=payload)
+        second_result = use_case.execute(event_type="message_new", payload=payload)
+
+        self.assertEqual(first_result, "draft_submitted:1:700")
+        self.assertEqual(second_result, "ok")
+        self.assertEqual(admin_notifications_service.notified_queued_counts, [1])
 
 
 if __name__ == "__main__":
