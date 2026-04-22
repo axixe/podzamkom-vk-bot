@@ -1,5 +1,6 @@
 from typing import Any
 
+from infrastructure.logger import get_logger, payload_summary
 from use_cases.process_vk_callback import ProcessVkCallbackUseCase
 
 
@@ -10,11 +11,21 @@ class VkCallbackHandler:
         self,
         process_vk_callback_use_case: ProcessVkCallbackUseCase,
         confirmation_code: str,
+        callback_secret: str,
     ) -> None:
         self._process_vk_callback_use_case = process_vk_callback_use_case
         self._confirmation_code = confirmation_code
+        self._callback_secret = callback_secret
+        self._logger = get_logger()
 
     def handle(self, request_json: dict[str, Any]) -> str:
+        self._logger.info("Incoming VK callback: %s", payload_summary(request_json))
+
+        request_secret = str(request_json.get("secret", ""))
+        if request_secret != self._callback_secret:
+            self._logger.warning("Callback rejected: secret mismatch")
+            return "forbidden"
+
         event_type = str(request_json.get("type", ""))
 
         result = self._process_vk_callback_use_case.execute(
