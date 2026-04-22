@@ -16,6 +16,14 @@ class EventRepository(Protocol):
         ...
 
 
+class ProcessedEventRepository(Protocol):
+    """Абстракция idempotency-guard для callback событий."""
+
+    def mark_processed_if_new(self, event_id: str) -> bool:
+        """Возвращает True, если event_id встретился впервые."""
+        ...
+
+
 class ActorIdentityRepository(Protocol):
     """Абстракция поиска/связывания доменной идентичности пользователя платформы."""
 

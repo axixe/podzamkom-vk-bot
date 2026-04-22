@@ -3,7 +3,12 @@ from datetime import datetime, timezone
 from typing import Any
 
 from domain.models import VkCallbackEvent
-from domain.repositories import EmployeeRepository, EventRepository, UserDraftRepository
+from domain.repositories import (
+    EmployeeRepository,
+    EventRepository,
+    ProcessedEventRepository,
+    UserDraftRepository,
+)
 from use_cases.clear_draft import ClearDraftUseCase
 from use_cases.identity.resolve_actor_identity import ResolveActorIdentityUseCase
 from use_cases.submit_draft import DraftIsEmptyError, SubmitDraftUseCase
@@ -14,6 +19,7 @@ class ProcessVkCallbackUseCase:
     """Бизнес-операция обработки callback-события без зависимости от транспорта."""
 
     event_repository: EventRepository
+    processed_event_repository: ProcessedEventRepository
     employee_repository: EmployeeRepository
     user_draft_repository: UserDraftRepository
     resolve_actor_identity_use_case: ResolveActorIdentityUseCase
@@ -21,6 +27,10 @@ class ProcessVkCallbackUseCase:
     submit_draft_use_case: SubmitDraftUseCase
 
     def execute(self, event_type: str, payload: dict[str, Any]) -> str:
+        event_id = self._extract_event_id(payload)
+        if event_id is not None and not self.processed_event_repository.mark_processed_if_new(event_id):
+            return "ok"
+
         event = VkCallbackEvent(
             event_type=event_type,
             payload=payload,
@@ -85,6 +95,15 @@ class ProcessVkCallbackUseCase:
             return int(event_object["from_id"])
 
         return None
+
+    @staticmethod
+    def _extract_event_id(payload: dict[str, Any]) -> str | None:
+        event_id = payload.get("event_id")
+        if not isinstance(event_id, str):
+            return None
+
+        normalized = event_id.strip()
+        return normalized if normalized else None
 
     @staticmethod
     def _extract_photo_file_ids(payload: dict[str, Any]) -> list[str]:
