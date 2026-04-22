@@ -58,6 +58,13 @@ class ProcessVkCallbackUseCase:
                 return "employee_not_allowed"
 
             text = self._extract_text(payload)
+            if self._is_start_command(text) or self._is_home_menu_command(text):
+                return "show_main_menu"
+
+            selected_role = self._extract_role_selection(text)
+            if selected_role is not None:
+                return f"role_selected:{selected_role}"
+
             if self._is_clear_command(text):
                 deleted_count = self.clear_draft_use_case.execute(user_id=actor.platform_user_id)
                 return f"draft_cleared:{deleted_count}"
@@ -180,3 +187,24 @@ class ProcessVkCallbackUseCase:
     def _is_submit_command(text: str) -> bool:
         normalized = text.strip().lower()
         return normalized in {"/submit", "submit", "отправить", "отправка"}
+
+
+    @staticmethod
+    def _is_start_command(text: str) -> bool:
+        normalized = text.strip().lower()
+        return normalized in {"начать", "/start", "start"}
+
+    @staticmethod
+    def _is_home_menu_command(text: str) -> bool:
+        normalized = text.strip().lower()
+        return normalized in {"🏠 главное меню", "главное меню", "/menu", "menu"}
+
+    @staticmethod
+    def _extract_role_selection(text: str) -> str | None:
+        normalized = text.strip().lower()
+        role_map = {
+            "employee": "employee",
+            "admin": "admin",
+            "guest": "guest",
+        }
+        return role_map.get(normalized)

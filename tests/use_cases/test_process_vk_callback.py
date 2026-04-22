@@ -194,6 +194,86 @@ class ProcessVkCallbackUseCaseTest(unittest.TestCase):
         self.assertEqual(second_result, "duplicate_event")
         self.assertEqual(admin_notifications_service.notified_queued_counts, [1])
 
+    def test_returns_main_menu_for_start_command(self) -> None:
+        event_repository = InMemoryEventRepository()
+        employee_repository = InMemoryEmployeeRepository()
+        user_draft_repository = InMemoryUserDraftRepository()
+        processed_event_repository = InMemoryProcessedEventRepository()
+        admin_notifications_service = SpyAdminNotificationsService()
+        actor_identity_repository = InMemoryActorIdentityRepository(
+            actors=[ActorIdentity(actor_id=15, username="active", platform_user_id=901)]
+        )
+        employee_repository.create(username="active", platform_user_id=901)
+
+        use_case = ProcessVkCallbackUseCase(
+            event_repository=event_repository,
+            processed_event_repository=processed_event_repository,
+            employee_repository=employee_repository,
+            user_draft_repository=user_draft_repository,
+            resolve_actor_identity_use_case=ResolveActorIdentityUseCase(
+                actor_identity_repository=actor_identity_repository
+            ),
+            clear_draft_use_case=ClearDraftUseCase(user_draft_repository=user_draft_repository),
+            submit_draft_use_case=SubmitDraftUseCase(
+                user_draft_repository=user_draft_repository,
+                admin_notifications_service=admin_notifications_service,
+            ),
+        )
+
+        result = use_case.execute(
+            event_type="message_new",
+            payload={
+                "object": {
+                    "message": {
+                        "from_id": 901,
+                        "text": "Начать",
+                    }
+                }
+            },
+        )
+
+        self.assertEqual(result, "show_main_menu")
+
+    def test_returns_selected_role_for_role_button_text(self) -> None:
+        event_repository = InMemoryEventRepository()
+        employee_repository = InMemoryEmployeeRepository()
+        user_draft_repository = InMemoryUserDraftRepository()
+        processed_event_repository = InMemoryProcessedEventRepository()
+        admin_notifications_service = SpyAdminNotificationsService()
+        actor_identity_repository = InMemoryActorIdentityRepository(
+            actors=[ActorIdentity(actor_id=15, username="active", platform_user_id=901)]
+        )
+        employee_repository.create(username="active", platform_user_id=901)
+
+        use_case = ProcessVkCallbackUseCase(
+            event_repository=event_repository,
+            processed_event_repository=processed_event_repository,
+            employee_repository=employee_repository,
+            user_draft_repository=user_draft_repository,
+            resolve_actor_identity_use_case=ResolveActorIdentityUseCase(
+                actor_identity_repository=actor_identity_repository
+            ),
+            clear_draft_use_case=ClearDraftUseCase(user_draft_repository=user_draft_repository),
+            submit_draft_use_case=SubmitDraftUseCase(
+                user_draft_repository=user_draft_repository,
+                admin_notifications_service=admin_notifications_service,
+            ),
+        )
+
+        result = use_case.execute(
+            event_type="message_new",
+            payload={
+                "object": {
+                    "message": {
+                        "from_id": 901,
+                        "text": "Admin",
+                    }
+                }
+            },
+        )
+
+        self.assertEqual(result, "role_selected:admin")
+
 
 if __name__ == "__main__":
     unittest.main()

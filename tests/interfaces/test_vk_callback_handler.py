@@ -115,6 +115,51 @@ class VkCallbackHandlerTest(unittest.TestCase):
         self.assertEqual(result, "ok")
         self.admin_handler.handle_text.assert_called_once_with(text="/next", from_id=101)
 
+    def test_returns_main_menu_for_start_command(self) -> None:
+        self.process_vk_callback_use_case.execute.return_value = "show_main_menu"
+
+        result = self.handler.handle(
+            {
+                "type": "message_new",
+                "secret": "super-secret",
+                "event_id": "evt-menu-1",
+                "object": {"message": {"from_id": 101, "text": "Начать"}},
+            }
+        )
+
+        self.assertIn("Employee", result)
+        self.assertIn("Admin", result)
+        self.assertIn("Guest", result)
+        self.assertIn("🏠 Главное меню", result)
+
+    def test_adds_main_menu_to_completed_action_response(self) -> None:
+        self.process_vk_callback_use_case.execute.return_value = "draft_cleared:2"
+
+        result = self.handler.handle(
+            {
+                "type": "message_new",
+                "secret": "super-secret",
+                "event_id": "evt-menu-2",
+                "object": {"message": {"from_id": 101, "text": "/clear"}},
+            }
+        )
+
+        self.assertIn("Черновик очищен", result)
+        self.assertIn("🏠 Главное меню", result)
+
+    def test_allows_text_only_message_for_message_new_validation(self) -> None:
+        result = self.handler.handle(
+            {
+                "type": "message_new",
+                "secret": "super-secret",
+                "event_id": "evt-menu-3",
+                "object": {"message": {"from_id": 101, "text": "Начать"}},
+            }
+        )
+
+        self.assertEqual(result, "ok")
+        self.process_vk_callback_use_case.execute.assert_called_once()
+
 
 if __name__ == "__main__":
     unittest.main()

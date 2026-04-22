@@ -56,20 +56,27 @@ class VkCallbackHandler:
         if result == "need_confirmation_code":
             return self._confirmation_code
 
+        if result == "show_main_menu":
+            return self._render_main_menu_message()
+
+        if result.startswith("role_selected:"):
+            role = result.split(":", maxsplit=1)[1]
+            return self._render_role_message(role)
+
         if result.startswith("draft_updated:"):
             draft_count = result.split(":", maxsplit=1)[1]
-            return f"Фото сохранены в черновик. Всего фото: {draft_count}"
+            return self._with_main_menu(f"Фото сохранены в черновик. Всего фото: {draft_count}")
 
         if result.startswith("draft_cleared:"):
             deleted_count = result.split(":", maxsplit=1)[1]
-            return f"Черновик очищен. Удалено фото: {deleted_count}"
+            return self._with_main_menu(f"Черновик очищен. Удалено фото: {deleted_count}")
 
         if result == "draft_empty":
-            return "Черновик пуст — отправлять нечего."
+            return self._with_main_menu("Черновик пуст — отправлять нечего.")
 
         if result.startswith("draft_submitted:"):
             _, queued_count, employee_id = result.split(":", maxsplit=2)
-            return (
+            return self._with_main_menu(
                 "Черновик отправлен в очередь. "
                 f"Фото в очереди: {queued_count}. "
                 f"employee_id: {employee_id}"
@@ -127,8 +134,10 @@ class VkCallbackHandler:
 
         has_attachments = isinstance(message_dict.get("attachments"), list)
         has_payload = "payload" in message_dict
-        if not has_attachments and not has_payload:
-            return "missing attachments/payload"
+        text_value = message_dict.get("text")
+        has_text = isinstance(text_value, str) and bool(text_value.strip())
+        if not has_attachments and not has_payload and not has_text:
+            return "missing attachments/payload/text"
 
         return None
 
@@ -155,3 +164,24 @@ class VkCallbackHandler:
             return
 
         self._logger.info("Admin command processed: from_id=%s result=%s", from_id, admin_result)
+
+    def _render_main_menu_message(self) -> str:
+        return (
+            "Привет! Выберите роль в меню ниже:\n"
+            "• Employee\n"
+            "• Admin\n"
+            "• Guest\n\n"
+            "Кнопка: 🏠 Главное меню"
+        )
+
+    def _render_role_message(self, role: str) -> str:
+        role_labels = {
+            "employee": "Employee",
+            "admin": "Admin",
+            "guest": "Guest",
+        }
+        role_label = role_labels.get(role, role)
+        return self._with_main_menu(f"Роль выбрана: {role_label}.")
+
+    def _with_main_menu(self, message: str) -> str:
+        return f"{message}\n\n{self._render_main_menu_message()}"
