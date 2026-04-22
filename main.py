@@ -3,6 +3,7 @@
 from infrastructure.bootstrap import build_container
 from infrastructure.config import AppConfig, ConfigError
 from infrastructure.logger import configure_logging, get_logger, mask_secret
+from infrastructure.services.vk_api_outgoing_message_service import VkApiOutgoingMessageService
 from interfaces.vk_callback_handler import VkCallbackHandler
 
 
@@ -30,6 +31,7 @@ if __name__ == "__main__":
         callback_secret=config.vk_callback_secret,
         admin_user_ids=config.admin_user_ids,
         admin_handler=container.admin_handler,
+        outgoing_message_service=VkApiOutgoingMessageService(vk_token=config.vk_token),
     )
 
     print(
